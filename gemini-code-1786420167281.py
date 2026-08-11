@@ -318,7 +318,7 @@ with tab2:
                             if HAS_GENAI:
                                 client = genai.Client(api_key=api_key)
                                 response = client.models.generate_content(
-                                    model='gemini-2.5-flash',
+                                    model='gemini-3.1-pro-preview',
                                     contents=prompt_content,
                                 )
                                 ai_result = response.text
@@ -380,7 +380,7 @@ with tab3:
                     if HAS_GENAI:
                         client = genai.Client(api_key=api_key)
                         response = client.models.generate_content(
-                            model='gemini-2.5-flash',
+                            model='gemini-3.1-pro-preview',
                             contents=batch_prompt,
                         )
                         batch_result = response.text
