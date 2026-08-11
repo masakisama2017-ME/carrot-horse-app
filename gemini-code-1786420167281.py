@@ -123,7 +123,7 @@ with tab1:
     if df_horses.empty:
         st.warning("データが見つかりません。`horses.json` を確認してください。")
     else:
-        with st.expander("🛠️ 絞り込み条件パネル", expanded=True):
+       with st.expander("🛠️ 絞り込み条件パネル", expanded=True):
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
 
             with f_col1:
@@ -134,22 +134,24 @@ with tab1:
                 selected_sires = st.multiselect("父馬", options=sire_options, default=sire_options)
 
             with f_col2:
-                # 募集総額フィルター（1000万円未満の場合は1000に固定して安全保護）
+                # 募集総額スライダー（0と最大値が同じにならないよう保護）
                 raw_max_price = df_horses["募集総額(万円)"].max() if not df_horses.empty else 10000
-                max_price = max(int(raw_max_price) if pd.notna(raw_max_price) and raw_max_price > 0 else 10000, 1000)
+                max_price = int(raw_max_price) if pd.notna(raw_max_price) and raw_max_price > 0 else 10000
                 price_range = st.slider("募集総額（万円）", 0, max_price, (0, max_price), step=500)
 
-                # 母の出産時年齢フィルター
+                # 母の出産時年齢スライダー（最小値＝最大値エラーを保護）
                 valid_ages = df_horses["母出産時年齢"].dropna()
                 min_a = int(valid_ages.min()) if not valid_ages.empty else 4
-                max_a = max(int(valid_ages.max()) if not valid_ages.empty else 20, min_a + 1)
+                max_a = int(valid_ages.max()) if not valid_ages.empty else 20
+                if min_a >= max_a:
+                    max_a = min_a + 1
                 age_range = st.slider("母の出産時年齢", min_a, max_a, (min_a, max_a))
 
             with f_col3:
-                # 連産数フィルター（1未満にならないよう保護）
+                # 連産数スライダー（最小値1と最大値が被らないよう、最大値を必ず2以上に固定）
                 raw_max_consec = df_horses["連産数"].max() if not df_horses.empty else 1
-                max_consec = max(int(raw_max_consec) if pd.notna(raw_max_consec) and raw_max_consec > 0 else 1, 1)
-                consec_limit = st.slider("連産数の上限（〜連産目）", 1, max_consec, max_consec)
+                max_consec = int(raw_max_consec) if pd.notna(raw_max_consec) and raw_max_consec > 1 else 2
+                consec_limit = st.slider("連産数の上限（〜連産目）", min_value=1, max_value=max_consec, value=max_consec)
 
                 min_cannon = st.number_input("最小管囲（cm以上）", min_value=0.0, max_value=25.0, value=0.0, step=0.1)
                 include_no_meas = st.checkbox("測尺未発表も含める", value=True)
