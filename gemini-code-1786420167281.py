@@ -134,16 +134,21 @@ with tab1:
                 selected_sires = st.multiselect("父馬", options=sire_options, default=sire_options)
 
             with f_col2:
-                max_price = int(df_horses["募集総額(万円)"].max()) if df_horses["募集総額(万円)"].max() > 0 else 10000
+                # 募集総額フィルター（1000万円未満の場合は1000に固定して安全保護）
+                raw_max_price = df_horses["募集総額(万円)"].max() if not df_horses.empty else 10000
+                max_price = max(int(raw_max_price) if pd.notna(raw_max_price) and raw_max_price > 0 else 10000, 1000)
                 price_range = st.slider("募集総額（万円）", 0, max_price, (0, max_price), step=500)
 
+                # 母の出産時年齢フィルター
                 valid_ages = df_horses["母出産時年齢"].dropna()
                 min_a = int(valid_ages.min()) if not valid_ages.empty else 4
-                max_a = int(valid_ages.max()) if not valid_ages.empty else 20
+                max_a = max(int(valid_ages.max()) if not valid_ages.empty else 20, min_a + 1)
                 age_range = st.slider("母の出産時年齢", min_a, max_a, (min_a, max_a))
 
             with f_col3:
-                max_consec = int(df_horses["連産数"].max()) if not df_horses.empty else 5
+                # 連産数フィルター（1未満にならないよう保護）
+                raw_max_consec = df_horses["連産数"].max() if not df_horses.empty else 1
+                max_consec = max(int(raw_max_consec) if pd.notna(raw_max_consec) and raw_max_consec > 0 else 1, 1)
                 consec_limit = st.slider("連産数の上限（〜連産目）", 1, max_consec, max_consec)
 
                 min_cannon = st.number_input("最小管囲（cm以上）", min_value=0.0, max_value=25.0, value=0.0, step=0.1)
