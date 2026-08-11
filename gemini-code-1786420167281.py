@@ -123,7 +123,7 @@ with tab1:
     if df_horses.empty:
         st.warning("データが見つかりません。`horses.json` を確認してください。")
     else:
-       with st.expander("🛠️ 絞り込み条件パネル", expanded=True):
+        with st.expander("🛠️ 絞り込み条件パネル", expanded=True):
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
 
             with f_col1:
@@ -134,12 +134,12 @@ with tab1:
                 selected_sires = st.multiselect("父馬", options=sire_options, default=sire_options)
 
             with f_col2:
-                # 募集総額スライダー（0と最大値が同じにならないよう保護）
+                # 募集総額スライダー
                 raw_max_price = df_horses["募集総額(万円)"].max() if not df_horses.empty else 10000
                 max_price = int(raw_max_price) if pd.notna(raw_max_price) and raw_max_price > 0 else 10000
                 price_range = st.slider("募集総額（万円）", 0, max_price, (0, max_price), step=500)
 
-                # 母の出産時年齢スライダー（最小値＝最大値エラーを保護）
+                # 母の出産時年齢スライダー
                 valid_ages = df_horses["母出産時年齢"].dropna()
                 min_a = int(valid_ages.min()) if not valid_ages.empty else 4
                 max_a = int(valid_ages.max()) if not valid_ages.empty else 20
@@ -148,7 +148,7 @@ with tab1:
                 age_range = st.slider("母の出産時年齢", min_a, max_a, (min_a, max_a))
 
             with f_col3:
-                # 連産数スライダー（最小値1と最大値が被らないよう、最大値を必ず2以上に固定）
+                # 連産数スライダー
                 raw_max_consec = df_horses["連産数"].max() if not df_horses.empty else 1
                 max_consec = int(raw_max_consec) if pd.notna(raw_max_consec) and raw_max_consec > 1 else 2
                 consec_limit = st.slider("連産数の上限（〜連産目）", min_value=1, max_value=max_consec, value=max_consec)
@@ -164,6 +164,9 @@ with tab1:
                 )
                 sort_order = st.radio("順序", options=["昇順（順）", "降順（逆順）"], horizontal=True)
 
+        # ------------------------------------------
+        # フィルタリング処理（インデント: 半角スペース8個）
+        # ------------------------------------------
         filtered_df = df_horses[
             (df_horses["性別"].isin(selected_sex)) &
             (df_horses["父"].isin(selected_sires)) &
