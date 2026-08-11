@@ -209,45 +209,91 @@ with tab2:
         if selected_horse in horse_db:
             data = horse_db[selected_horse]
             
-            birth_year = int(data.get("birth_date", "2025-01-01").split("-")[0])
-            mother_age = birth_year - data["mother_birth_year"] if data.get("mother_birth_year") else "不明"
-            
+            # -------------------------------------------------------------
+            # 安全なデータ計算ロジック（型エラー・欠損値対策）
+            # -------------------------------------------------------------
+            # 1. 産駒生年の取得
+            try:
+                b_date_str = str(data.get("birth_date", "2025-01-01"))
+                birth_year = int(b_date_str.split("-")[0]) if "-" in b_date_str else int(b_date_str[:4])
+            except Exception:
+                birth_year = 2025
+
+            # 2. 母の出産時年齢計算
+            m_birth = data.get("mother_birth_year")
+            if m_birth and str(m_birth).isdigit():
+                mother_age_num = birth_year - int(m_birth)
+                mother_age_text = f"{mother_age_num} 歳"
+            else:
+                mother_age_num = None
+                mother_age_text = "不明"
+
+            # 3. 連産状況の計算
             siblings = data.get("siblings", [])
             consecutive_count = 1
             for i in range(1, 10):
-                if any(s.get("birth_year") == birth_year - i for s in siblings):
+                target_year = birth_year - i
+                has_prev = False
+                for s in siblings:
+                    s_year = s.get("birth_year")
+                    # 数値・文字列どちらでも一致判定できるように変換して比較
+                    if s_year is not None and str(s_year).isdigit() and int(s_year) == target_year:
+                        has_prev = True
+                        break
+                if has_prev:
                     consecutive_count += 1
                 else:
                     break
-            child_order = len(siblings) + 1
 
-            # メトリクス表示
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("母の出産時年齢", f"{mother_age} 歳")
-            
+            child_order = len(siblings) + 1
             consec_label = f"{child_order}番目の仔 ({consecutive_count}連産目)" if consecutive_count > 1 else f"{child_order}番目の仔 (空胎明け)"
-            m2.metric("連産状況", consec_label)
-            
-            stud_fee_val = data.get('stud_fee', '未定')
-            stud_fee_text = f"{stud_fee_val} 万円" if isinstance(stud_fee_val, (int, float)) else str(stud_fee_val)
-            m3.metric("父の種付け料", stud_fee_text)
-            
-            if isinstance(data.get("total_price"), (int, float)) and isinstance(data.get("stud_fee"), (int, float)) and data["stud_fee"] > 0:
-                ratio = round(data["total_price"] / data["stud_fee"], 1)
-                m4.metric("価格/種付け料 倍率", f"{ratio} 倍")
+
+            # 4. 父の種付け料 & 倍率計算
+            stud_fee_raw = data.get("stud_fee")
+            if stud_fee_raw is not None and str(stud_fee_raw).isdigit() and float(stud_fee_raw) > 0:
+                stud_fee_num = float(stud_fee_raw)
+                stud_fee_text = f"{int(stud_fee_num):,} 万円"
+            elif isinstance(stud_fee_raw, (int, float)) and stud_fee_raw > 0:
+                stud_fee_num = float(stud_fee_raw)
+                stud_fee_text = f"{int(stud_fee_num):,} 万円"
             else:
-                m4.metric("価格/種付け料 倍率", "未定")
+                stud_fee_num = None
+                stud_fee_text = str(stud_fee_raw) if stud_fee_raw else "未定"
+
+            # 募集総額
+            tot_price_raw = data.get("total_price")
+            if tot_price_raw is not None and str(tot_price_raw).isdigit() and float(tot_price_raw) > 0:
+                tot_price_num = float(tot_price_raw)
+            elif isinstance(tot_price_raw, (int, float)) and tot_price_raw > 0:
+                tot_price_num = float(tot_price_raw)
+            else:
+                tot_price_num = None
+
+            # 価格/種付け料倍率
+            if tot_price_num and stud_fee_num:
+                ratio_text = f"{round(tot_price_num / stud_fee_num, 1)} 倍"
+            else:
+                ratio_text = "未定"
+
+            # -------------------------------------------------------------
+            # UI表示（メトリクス）
+            # -------------------------------------------------------------
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("母の出産時年齢", mother_age_text)
+            m2.metric("連産状況", consec_label)
+            m3.metric("父の種付け料", stud_fee_text)
+            m4.metric("価格/種付け料 倍率", ratio_text)
 
             st.divider()
 
+            # (以下、基本情報・血統・AI診断などの既存表示処理)
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"### 📋 基本情報 ({data['father']} × {data['mother']})")
-                st.markdown(f"- **性別・毛色:** {data['sex']} / {data.get('color', '不明')}")
-                st.markdown(f"- **生年月日:** {data.get('birth_date')}")
-                st.markdown(f"- **予定厩舎:** {data.get('trainer')}")
-                tot_p = f"{data['total_price']} 万円" if isinstance(data.get('total_price'), (int, float)) else data.get('total_price')
-                st.markdown(f"- **募集価格:** 総額 {tot_p}")
+                st.markdown(f"### 📋 基本情報 ({data.get('father', '不明')} × {data.get('mother', '不明')})")
+                st.markdown(f"- **性別・毛色:** {data.get('sex', '不明')} / {data.get('color', '不明')}")
+                st.markdown(f"- **生年月日:** {data.get('birth_date', '不明')}")
+                st.markdown(f"- **予定厩舎:** {data.get('trainer', '未定')}")
+                st.markdown(f"- **募集価格:** 総額 {data.get('total_price', '未定')} 万円")
                 
                 st.markdown("### 📏 測尺データ")
                 m = data.get('measurements', {})
@@ -255,13 +301,13 @@ with tab2:
 
             with col2:
                 st.markdown("### 🧬 血統・母系成績")
-                st.markdown(f"- **母父:** {data.get('mother_father')}")
-                st.markdown(f"- **母競走成績:** {data.get('mother_record')}")
+                st.markdown(f"- **母父:** {data.get('mother_father', '不明')}")
+                st.markdown(f"- **母競走成績:** {data.get('mother_record', '未確認')}")
                 
                 st.markdown("**兄弟馬の状況:**")
                 if siblings:
                     for sib in siblings:
-                        st.markdown(f"  - {sib['name']}（{sib['birth_year']}年産 / 父: {sib['father']}）: {sib['record']}")
+                        st.markdown(f"  - {sib.get('name', '馬名未定')}（{sib.get('birth_year', '不明')}年産 / 父: {sib.get('father', '不明')}）: {sib.get('record', '未判定')}")
                 else:
                     st.markdown("  - 初仔")
 
